@@ -7,7 +7,7 @@
 // @include     https://*.goodreads.com/*
 // @include     https://goodreads.com/*
 // @grant       none
-// @version     1.0.5
+// @version     1.0.6
 // @updateURL   https://openuserjs.org/install/bbbbbr/Goodreads_Half-Stars_and_Rating_Tags.user.js
 // @downloadURL https://openuserjs.org/install/bbbbbr/Goodreads_Half-Stars_and_Rating_Tags.user.js
 // @homepageURL https://openuserjs.org/scripts/bbbbbr/Goodreads_Half-Stars_and_Rating_Tags
@@ -226,7 +226,7 @@ function appendTagLabel(parentObj, labelText)
     {
         var tagSpan                   = document.createElement('span');
 
-        tagSpan.innerHTML             = labelText;
+        tagSpan.textContent           = labelText;
         tagSpan.style.color           = "#555";
         tagSpan.style.backgroundColor = "#ddd";
         tagSpan.style.borderRadius    = "2px";
@@ -314,11 +314,13 @@ function convertTagsToImages()
 
             if (match != null) {
 
-                // Strip out tag name and save off any trailing text (trailing text gets re-appended later)
+                // Strip out tag name (tag will get appended further below)
+                // (This used to use innerhtml to strip out tag name, then re-append non-tag text later)
+                // (Alternately, could also append tag text in a Span tag)
                 nodeText = nodeText.replace(match[0], "");
 
                 // Remove tag text temporarily
-                elAnchor.innerHTML = "";
+                elAnchor.text = nodeText;
 
                 // Append the tag label, if suitable
                 appendTagLabel(elAnchor, match[1]);
@@ -328,9 +330,6 @@ function convertTagsToImages()
 
                 // Prevent line breaks in the middle of rating images and labels
                 elAnchor.style.whiteSpace="nowrap";
-
-                // Restore trailing text
-                elAnchor.innerHTML = elAnchor.innerHTML + nodeText;
 
             } // End regex string match test
 
