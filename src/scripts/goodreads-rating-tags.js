@@ -174,8 +174,13 @@ function rewiteAlternateRatingFormats(tagName)
     // Ignore strings with the GoodReads format of 'N of N stars' in the formal (non-tag) rating area
     // (Narrowing scope of anchor node search would remove need for this)
     var ignoreGoodReadsRatingsAreaMatch = /.*\d of \d stars.*/i.exec(tagName);
+
     if (ignoreGoodReadsRatingsAreaMatch == null)
     {
+        // Require plural version of rating keywords
+        tagName = tagName.replace(/stars?/gi,  "stars");
+        tagName = tagName.replace(/clouds?/gi,  "clouds");
+
         // Convert string numerics to digits
         tagName = tagName.replace(/five/gi,  "5");
         tagName = tagName.replace(/four/gi,  "4");
@@ -184,24 +189,32 @@ function rewiteAlternateRatingFormats(tagName)
         tagName = tagName.replace(/one/gi,   "1");
         tagName = tagName.replace(/zero/gi,  "0");
 
-        // Rewrite *N-5*star(s)... *N-half*star(s)...
-        tagName = tagName.replace(/(.*\d)( |-)5(.*)/gi,  "$1-half$3");
-        // Remove leading and..."one"/"1"... sometimes found in front of "half" (complicates regexes below)
-        tagName = tagName.replace(/and( |-)*1( |-)*half/gi,  "half");
 
-        // Attempt to match half-star first, then whole star (whole star format is looser match, so must occur after half star)
-        //
-        // match : [0] = full match text, [1] = optional label, [2] = first numeric component, [3]=cloud/star, [4] = optional label
-        // *N-half-[stars|clouds]*
-        // *N-[stars|clouds]*
-        var tagMatchHalf  = /(.*)(\d)[ |-]half[ |-](stars|clouds)(.*)/i.exec(tagName);
-        var tagMatchWhole = /(^|[.*\D])([1-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+        // Rewrite *N*..*half* to *N-5* (such as "4-ana-half-stars")
+        tagName = tagName.replace(/(.*)?(\d)[a-z0-9 \-]*half(.*)/gi,  "$1$2-5$3");
 
-        // If a match was found then rewrite it to the desired format of : <label>-<stars|clouds>-<N-N>
-        if (tagMatchHalf != null) {
-            tagName = tagMatchHalf[1] + ' ' + tagMatchHalf[3] + '-' + tagMatchHalf[2] + '-5' + tagMatchHalf[4];
-        } else if (tagMatchWhole != null) {
-            tagName = tagMatchWhole[1] + ' ' + tagMatchWhole[3] + '-' + tagMatchWhole[2] + '-0' + tagMatchWhole[4];
+
+        // Attempt to match and re-write "N-N-stars|clouds" to "stars|clouds-N-N"
+        // [1] = leading text, [2] = first digit, [3] = second digit, [4]=stars|clouds, [5]=trailing text
+        let tagMatchWhole    = /(.*[^0-9\n])?([0-5])[ |-]([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+        // Attempt to match and re-write "N-stars|clouds" to "stars|clouds-N"
+        let tagMatchPartial  = /^(.*[^0-9\n]|)([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+
+        if (tagMatchWhole != null) {
+
+            // Fill in a blank string for the optional capture group if it's undefined
+            if (typeof(tagMatchWhole[1]) == 'undefined') tagMatchWhole[1] = '';
+
+            // Rewrite tag to standard format
+            tagName = tagMatchWhole[1] + tagMatchWhole[4] + '-' + tagMatchWhole[2] + '-' + tagMatchWhole[3] + tagMatchWhole[5];
+        }
+        else if (tagMatchPartial != null) {
+
+            // Fill in a blank string for the optional capture group if it's undefined
+            if (typeof(tagMatchPartial[1]) == 'undefined') tagMatchPartial[1] = '';
+
+            // Rewrite tag to standard format
+            tagName = tagMatchPartial[1]  + tagMatchPartial[3] + '-' + tagMatchPartial[2] + tagMatchPartial[4];
         }
 
     }
@@ -296,7 +309,6 @@ function renderTagImages(parentObj, imgType, imgValue)
 //
 function convertTagsToImages()
 {
-    var nodeText;
     var objText;
     var elAnchor;
     var elLinks = document.getElementsByTagName( 'a' );
@@ -309,60 +321,67 @@ function convertTagsToImages()
         // Only convert anchor tags which haven't already been inspected
         if (elAnchor.hasAttribute("data-tag-image-inspected") == false)
         {
-            nodeText = elAnchor.text;
+            let nodeText = elAnchor.text;
 
-            // Require plural version of rating keywords
-            nodeText = nodeText.replace(/star\D?/gi,  "stars");
-            nodeText = nodeText.replace(/cloud\D?/gi,  "clouds");
+            // Only convert tags with "star" or "cloud" in the name
+            var match = /star|cloud/i.exec(nodeText);
 
-            // match[0] = full match text, [1] = optional label, [2] = "stars" or "clouds", [3] = "N1-N2" where (ideally) N1 is a digit 0-9 and N2 is 0 or 5
-            var match = /([\w-]*?)-*(stars|clouds)-(\d-\d)/i.exec(nodeText);
-
-            // No match? Rework the tag format if possible and try the match again
-            if (match == null) {
+            if (match != null)
+            {
+                // Rework the tag format to be as standardized as possible
                 nodeText = rewiteAlternateRatingFormats(nodeText);
-                match = /([\w-]*?)-*(stars|clouds)-(\d-\d)/i.exec(nodeText);
-            }
 
-            if (match != null) {
+                // match[0] = full match text, [1] = optional label, [2] = "stars" or "clouds",
+                //      [3] = "N1-N2" where (ideally) N1 is a digit 0-9 and N2 is 0 or 5
+                var match = /([\w-]*?)-*(stars|clouds)-(\d-\d)[\D|]/i.exec(nodeText);
 
-                // Strip out tag name (tag will get appended further below)
-                let sRegExInputL = new RegExp(match[0] + '.*', 'g');
-                let sRegExInputR = new RegExp('.*' + match[0], 'g');
-
-                let nodeTextLeft = nodeText.replace(sRegExInputL, "");
-                let nodeTextRight = nodeText.replace(sRegExInputR, "");
-
-                // Append left side of non-tag text
-                // (This used to use innerhtml)
-                elAnchor.text = nodeTextLeft;
-
-                // Append the tag label, if suitable
-                appendTagLabel(elAnchor, match[1], 'with-style');
-
-                // Render tag image
-                renderTagImages(elAnchor, match[2], match[3]);
-
-                // Append any trailing text
-                appendTagLabel(elAnchor, nodeTextRight, 'no-style');
-
-                // Prevent line breaks in the middle of rating images and labels
-                elAnchor.style.whiteSpace="nowrap";
-
-            } // End regex string match test
+                // No match? Try a variation "stars|clouds-N"
+                if (match == null)
+                    match = /([\w-]*?)-*(stars|clouds)-(\d)[\D|][\D|]/i.exec(nodeText);
 
 
-            // If it's a tag on the edit-shelves page then add a shim to detect when they get renamed
-            if (elAnchor.className.indexOf('displayShelfNameLnk') > -1) {
-                appendRenameCanary(elAnchor);
-            }
+                if (match != null) {
 
-            // Flag the anchor has having been inspected so it won't get images appended
-            // multiple times if the page is re-scanned to catch dynamic content (if tag text was not cleared).
-            //
-            //   Note : Data set name becomes "data-tag-image-inspected" when referenced as an Attribute.
-            //
-            elAnchor.dataset.tagImageInspected = "true";
+                    // Strip out tag name (tag will get appended further below)
+                    let sRegExInputL = new RegExp(match[0] + '.*', 'g');
+                    let sRegExInputR = new RegExp('.*' + match[0], 'g');
+
+                    let nodeTextLeft = nodeText.replace(sRegExInputL, "");
+                    let nodeTextRight = nodeText.replace(sRegExInputR, "");
+
+                    // Append left side of non-tag text
+                    // (This used to use innerhtml)
+                    elAnchor.text = "";
+                    elAnchor.text = nodeTextLeft;
+
+                    // Append the tag label, if suitable
+                    appendTagLabel(elAnchor, match[1], 'with-style');
+
+                    // Render tag image
+                    renderTagImages(elAnchor, match[2], match[3]);
+
+                    // Append any trailing text
+                    appendTagLabel(elAnchor, nodeTextRight, 'no-style');
+
+                    // Prevent line breaks in the middle of rating images and labels
+                    elAnchor.style.whiteSpace="nowrap";
+
+                } // End regex string match test
+
+
+                // If it's a tag on the edit-shelves page then add a shim to detect when they get renamed
+                if (elAnchor.className.indexOf('displayShelfNameLnk') > -1) {
+                    appendRenameCanary(elAnchor);
+                }
+
+                // Flag the anchor has having been inspected so it won't get images appended
+                // multiple times if the page is re-scanned to catch dynamic content (if tag text was not cleared).
+                //
+                //   Note : Data set name becomes "data-tag-image-inspected" when referenced as an Attribute.
+                //
+                elAnchor.dataset.tagImageInspected = "true";
+
+            } // End: Only convert tags with "star" or "cloud" in the name
 
         } // End previously inspected test
 
