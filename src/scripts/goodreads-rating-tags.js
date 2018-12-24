@@ -184,21 +184,26 @@ function rewiteAlternateRatingFormats(tagName)
         tagName = tagName.replace(/one/gi,   "1");
         tagName = tagName.replace(/zero/gi,  "0");
 
+        // Rewrite *N-5*star(s)... *N-half*star(s)...
+        tagName = tagName.replace(/(.*\d)( |-)5(.*)/gi,  "$1-half$3");
         // Remove leading and..."one"/"1"... sometimes found in front of "half" (complicates regexes below)
         tagName = tagName.replace(/and( |-)*1( |-)*half/gi,  "half");
 
         // Attempt to match half-star first, then whole star (whole star format is looser match, so must occur after half star)
         //
-        // match : [0] = full match text, [1] = optional label, [2] = first numeric component, [3] = 'half'(half star regex) or 'star'(whole star regex)
-        var tagMatchHalf  = /(.*)(\d).*(half).*/i.exec(tagName);
-        var tagMatchWhole = /(.*)(\d).*(star).*/i.exec(tagName);
+        // match : [0] = full match text, [1] = optional label, [2] = first numeric component, [3]=cloud/star, [4] = optional label
+        // *N-half-[stars|clouds]*
+        // *N-[stars|clouds]*
+        var tagMatchHalf  = /(.*)(\d)[ |-]half[ |-](stars|clouds)(.*)/i.exec(tagName);
+        var tagMatchWhole = /(^|[.*\D])([1-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
 
-        // If a match was found then rewrite it to the desired format of : <label>-<stars>-<N-N>
+        // If a match was found then rewrite it to the desired format of : <label>-<stars|clouds>-<N-N>
         if (tagMatchHalf != null) {
-            tagName = tagMatchHalf[1] + '-stars-' + tagMatchHalf[2] + '-5';
+            tagName = tagMatchHalf[1] + ' ' + tagMatchHalf[3] + '-' + tagMatchHalf[2] + '-5' + tagMatchHalf[4];
         } else if (tagMatchWhole != null) {
-            tagName = tagMatchWhole[1] + '-stars-' + tagMatchWhole[2] + '-0';
+            tagName = tagMatchWhole[1] + ' ' + tagMatchWhole[3] + '-' + tagMatchWhole[2] + '-0' + tagMatchWhole[4];
         }
+
     }
 
     return(tagName);
@@ -303,6 +308,10 @@ function convertTagsToImages()
         {
             nodeText = elAnchor.text;
 
+            // Require plural version of rating keywords
+            nodeText = nodeText.replace(/star\D?/gi,  "stars");
+            nodeText = nodeText.replace(/cloud\D?/gi,  "clouds");
+
             // match[0] = full match text, [1] = optional label, [2] = "stars" or "clouds", [3] = "N1-N2" where (ideally) N1 is a digit 0-9 and N2 is 0 or 5
             var match = /([\w-]*?)-*(stars|clouds)-(\d-\d)/i.exec(nodeText);
 
@@ -320,7 +329,7 @@ function convertTagsToImages()
                 nodeText = nodeText.replace(match[0], "");
 
                 // Remove tag text temporarily
-                elAnchor.text = nodeText;
+                elAnchor.text = nodeText + ' ';
 
                 // Append the tag label, if suitable
                 appendTagLabel(elAnchor, match[1]);
