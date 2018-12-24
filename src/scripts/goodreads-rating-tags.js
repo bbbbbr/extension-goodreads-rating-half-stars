@@ -225,18 +225,21 @@ function appendImage(parentObj, imgData)
 // Append a <span> tag as a rating label (with a trailing space) to an element.
 // The label won't be added if the text is blank or has the generic name "rating"
 //
-function appendTagLabel(parentObj, labelText)
+function appendTagLabel(parentObj, labelText, styleMode)
 {
     if ((labelText != "") && (labelText != "rating"))
     {
         var tagSpan                   = document.createElement('span');
 
         tagSpan.textContent           = labelText;
-        tagSpan.style.color           = "#555";
-        tagSpan.style.backgroundColor = "#ddd";
-        tagSpan.style.borderRadius    = "2px";
-        tagSpan.style.padding         = "2px 5px 2px 5px";
-        tagSpan.style.marginRight     = "5px";
+
+        if (styleMode == 'with-style') {
+            tagSpan.style.color           = "#555";
+            tagSpan.style.backgroundColor = "#ddd";
+            tagSpan.style.borderRadius    = "2px";
+            tagSpan.style.padding         = "2px 5px 2px 5px";
+            tagSpan.style.marginRight     = "5px";
+        }
 
         parentObj.appendChild(tagSpan);
     }
@@ -324,18 +327,24 @@ function convertTagsToImages()
             if (match != null) {
 
                 // Strip out tag name (tag will get appended further below)
-                // (This used to use innerhtml to strip out tag name, then re-append non-tag text later)
-                // (Alternately, could also append tag text in a Span tag)
-                nodeText = nodeText.replace(match[0], "");
+                let sRegExInputL = new RegExp(match[0] + '.*', 'g');
+                let sRegExInputR = new RegExp('.*' + match[0], 'g');
 
-                // Remove tag text temporarily
-                elAnchor.text = nodeText + ' ';
+                let nodeTextLeft = nodeText.replace(sRegExInputL, "");
+                let nodeTextRight = nodeText.replace(sRegExInputR, "");
+
+                // Append left side of non-tag text
+                // (This used to use innerhtml)
+                elAnchor.text = nodeTextLeft;
 
                 // Append the tag label, if suitable
-                appendTagLabel(elAnchor, match[1]);
+                appendTagLabel(elAnchor, match[1], 'with-style');
 
                 // Render tag image
                 renderTagImages(elAnchor, match[2], match[3]);
+
+                // Append any trailing text
+                appendTagLabel(elAnchor, nodeTextRight, 'no-style');
 
                 // Prevent line breaks in the middle of rating images and labels
                 elAnchor.style.whiteSpace="nowrap";
