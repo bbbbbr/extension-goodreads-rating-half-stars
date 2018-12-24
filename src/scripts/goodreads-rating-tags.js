@@ -193,27 +193,19 @@ function rewiteAlternateRatingFormats(tagName)
         // Rewrite *N*..*half* to *N-5* (such as "4-ana-half-stars")
         tagName = tagName.replace(/(.*)?(\d)[a-z0-9 \-]*half(.*)/gi,  "$1$2-5$3");
 
+//TODO: FIXME, could simplify regex now that it's no longer needing to reject -NN or N-NN
 
         // Attempt to match and re-write "N-N-stars|clouds" to "stars|clouds-N-N"
         // [1] = leading text, [2] = first digit, [3] = second digit, [4]=stars|clouds, [5]=trailing text
-        let tagMatchWhole    = /(.*[^0-9\n])?([0-5])[ |-]([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+        let tagMatchWhole    = /^(.*[^0-9\n]|)([0-5])[ |-]([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
         // Attempt to match and re-write "N-stars|clouds" to "stars|clouds-N"
         let tagMatchPartial  = /^(.*[^0-9\n]|)([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
 
+        // Rewrite tag to standard format
         if (tagMatchWhole != null) {
-
-            // Fill in a blank string for the optional capture group if it's undefined
-            if (typeof(tagMatchWhole[1]) == 'undefined') tagMatchWhole[1] = '';
-
-            // Rewrite tag to standard format
             tagName = tagMatchWhole[1] + tagMatchWhole[4] + '-' + tagMatchWhole[2] + '-' + tagMatchWhole[3] + tagMatchWhole[5];
         }
         else if (tagMatchPartial != null) {
-
-            // Fill in a blank string for the optional capture group if it's undefined
-            if (typeof(tagMatchPartial[1]) == 'undefined') tagMatchPartial[1] = '';
-
-            // Rewrite tag to standard format
             tagName = tagMatchPartial[1]  + tagMatchPartial[3] + '-' + tagMatchPartial[2] + tagMatchPartial[4];
         }
 
@@ -324,20 +316,23 @@ function convertTagsToImages()
             let nodeText = elAnchor.text;
 
             // Only convert tags with "star" or "cloud" in the name
-            var match = /star|cloud/i.exec(nodeText);
+            let match = /star|cloud/i.exec(nodeText);
 
-            if (match != null)
+            // Simplfy matching by rejecting known unwanted formats ..-NN (ex: star-35, stars-3-25)
+            let reject = /-\d\d/i.exec(nodeText);
+
+            if ((match != null) && (reject == null))
             {
                 // Rework the tag format to be as standardized as possible
                 nodeText = rewiteAlternateRatingFormats(nodeText);
 
                 // match[0] = full match text, [1] = optional label, [2] = "stars" or "clouds",
                 //      [3] = "N1-N2" where (ideally) N1 is a digit 0-9 and N2 is 0 or 5
-                var match = /([\w-]*?)-*(stars|clouds)-(\d-\d)[\D|]/i.exec(nodeText);
+                let match = /([\w-]*?)-*(stars|clouds)-(\d-\d)/i.exec(nodeText);
 
                 // No match? Try a variation "stars|clouds-N"
                 if (match == null)
-                    match = /([\w-]*?)-*(stars|clouds)-(\d)[\D|][\D|]/i.exec(nodeText);
+                    match = /([\w-]*?)-*(stars|clouds)-(\d)/i.exec(nodeText);
 
 
                 if (match != null) {
