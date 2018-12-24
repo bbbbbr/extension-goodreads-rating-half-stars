@@ -197,9 +197,9 @@ function rewiteAlternateRatingFormats(tagName)
 
         // Attempt to match and re-write "N-N-stars|clouds" to "stars|clouds-N-N"
         // [1] = leading text, [2] = first digit, [3] = second digit, [4]=stars|clouds, [5]=trailing text
-        let tagMatchWhole    = /^(.*[^0-9\n]|)([0-5])[ |-]([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+        let tagMatchWhole    = /(.*)([0-5])[ |-]([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
         // Attempt to match and re-write "N-stars|clouds" to "stars|clouds-N"
-        let tagMatchPartial  = /^(.*[^0-9\n]|)([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
+        let tagMatchPartial  = /(.*)([0-5])[ |-](stars|clouds)(.*)/i.exec(tagName);
 
         // Rewrite tag to standard format
         if (tagMatchWhole != null) {
