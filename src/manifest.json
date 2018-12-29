@@ -2,7 +2,7 @@
     "manifest_version": 2,
 
     "name": "Goodreads Half-Stars and Rating Tags",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "Converts selected tags on GoodReads into rating images (such as tags with half-star ratings)",
 
     "browser_action": {
